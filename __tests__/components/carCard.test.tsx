@@ -78,6 +78,33 @@ describe("CarCard", () => {
     expect(screen.getByText("Blue")).toBeInTheDocument();
   });
 
+  it("links to the owning dealer profile when a dealer is present", () => {
+    render(
+      <CarCard
+        car={{
+          ...baseCar,
+          dealer: {
+            id: "dealer-1",
+            name: "Acme Motors",
+            slug: "acme-motors",
+            city: "Beirut",
+            logoUrl: null,
+          },
+        }}
+      />,
+    );
+
+    expect(
+      screen.getByRole("link", { name: /acme motors · beirut/i }),
+    ).toHaveAttribute("href", "/dealers/acme-motors");
+  });
+
+  it("does not render a dealer link for legacy cars", () => {
+    render(<CarCard car={baseCar} />);
+
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+
   it("formats the price as GBP without decimals", () => {
     render(<CarCard car={baseCar} />);
 

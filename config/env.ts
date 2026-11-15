@@ -21,7 +21,9 @@ export const clientEnvSchema = z.object({
   NEXT_PUBLIC_MAX_CAR_IMAGE_SIZE_MB: z.coerce.number().default(5),
   NEXT_PUBLIC_MAX_LOGO_SIZE_MB: z.coerce.number().default(1),
   NEXT_PUBLIC_MAX_FAVICON_SIZE_KB: z.coerce.number().default(256),
-  NEXT_PUBLIC_TOTAL_STORAGE_LIMIT_GB: z.coerce.number().default(50),
+  // Supabase free tier includes 1 GB of storage
+  NEXT_PUBLIC_TOTAL_STORAGE_LIMIT_GB: z.coerce.number().default(1),
+  NEXT_PUBLIC_MAX_IMAGES_PER_CAR: z.coerce.number().int().min(1).default(8),
 });
 
 /**
@@ -32,8 +34,8 @@ export const serverEnvSchema = clientEnvSchema.extend({
   SUPABASE_SECRET_KEY: z.string().min(1),
   SUPABASE_JWT_SECRET: z.string().optional(),
 
-  // Security
-  ARCJET_KEY: z.string().min(1),
+  // Security (optional: Arcjet protection is skipped when unset)
+  ARCJET_KEY: z.string().min(1).optional(),
 
   // Logging
   LOG_LEVEL: z
@@ -53,7 +55,6 @@ const FALLBACK_ENV = {
   NEXT_PUBLIC_SUPABASE_URL: "https://placeholder.supabase.co",
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "placeholder-publishable-key",
   SUPABASE_SECRET_KEY: "placeholder-secret-key",
-  ARCJET_KEY: "placeholder-arcjet-key",
 };
 
 /**
@@ -86,6 +87,9 @@ export function validateEnv(
     NEXT_PUBLIC_TOTAL_STORAGE_LIMIT_GB: normalize(
       process.env.NEXT_PUBLIC_TOTAL_STORAGE_LIMIT_GB,
     ),
+    NEXT_PUBLIC_MAX_IMAGES_PER_CAR: normalize(
+      process.env.NEXT_PUBLIC_MAX_IMAGES_PER_CAR,
+    ),
     LOG_LEVEL: normalize(process.env.LOG_LEVEL),
   },
   isServerEnv: boolean = typeof window === "undefined",
@@ -106,7 +110,6 @@ export function validateEnv(
         FALLBACK_ENV.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
       SUPABASE_SECRET_KEY:
         runtimeEnv.SUPABASE_SECRET_KEY ?? FALLBACK_ENV.SUPABASE_SECRET_KEY,
-      ARCJET_KEY: runtimeEnv.ARCJET_KEY ?? FALLBACK_ENV.ARCJET_KEY,
     };
 
     const parsed = schema.safeParse(envToValidate);

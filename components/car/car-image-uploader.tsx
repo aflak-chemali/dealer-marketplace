@@ -8,6 +8,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { env, FILE_LIMITS } from "@/config/env";
+import { compressImage } from "@/lib/helpers/compress-image";
+
+const MAX_IMAGES_PER_CAR = env.NEXT_PUBLIC_MAX_IMAGES_PER_CAR ?? 8;
 
 export interface CarImageUploaderProps {
   existingImages?: string[];
@@ -41,10 +44,29 @@ export function CarImageUploader({
     };
   }, [imagePreviews]);
 
-  // Handle multiple image uploads with Dropzone
+  // Handle multiple image uploads with Dropzone (compressed client-side)
   const onMultiImagesDrop = useCallback(
-    (acceptedFiles: File[]) => {
-      const validFiles = acceptedFiles.filter((file) => {
+    async (acceptedFiles: File[]) => {
+      const remaining =
+        MAX_IMAGES_PER_CAR - existingImages.length - newImages.length;
+      if (remaining <= 0) {
+        toast.error(
+          `You can upload up to ${MAX_IMAGES_PER_CAR} images per car`,
+        );
+        return;
+      }
+      if (acceptedFiles.length > remaining) {
+        toast.error(
+          `Only ${remaining} more image${remaining > 1 ? "s" : ""} allowed (max ${MAX_IMAGES_PER_CAR} per car)`,
+        );
+      }
+
+      setUploadProgress(30);
+      const compressed = await Promise.all(
+        acceptedFiles.slice(0, remaining).map((file) => compressImage(file)),
+      );
+
+      const validFiles = compressed.filter((file) => {
         if (file.size > FILE_LIMITS.CAR_IMAGE) {
           toast.error(
             `${file.name} exceeds the ${env.NEXT_PUBLIC_MAX_CAR_IMAGE_SIZE_MB}MB limit and will be skipped`,
@@ -54,7 +76,10 @@ export function CarImageUploader({
         return true;
       });
 
-      if (validFiles.length === 0) return;
+      if (validFiles.length === 0) {
+        setUploadProgress(0);
+        return;
+      }
 
       setUploadProgress(100);
 
@@ -66,7 +91,7 @@ export function CarImageUploader({
 
       setTimeout(() => setUploadProgress(0), 300);
     },
-    [newImages, onImageErrorChange, onNewImagesChange],
+    [existingImages.length, newImages, onImageErrorChange, onNewImagesChange],
   );
 
   const {
@@ -142,7 +167,8 @@ export function CarImageUploader({
               {existingImages.length > 0 ? "new " : ""}images
             </span>
             <span className="mt-1 text-gray-500 text-xs">
-              (JPG, PNG, WebP, max 1MB each)
+              (JPG, PNG, WebP, up to {MAX_IMAGES_PER_CAR} images; compressed
+              automatically)
             </span>
           </div>
         </div>

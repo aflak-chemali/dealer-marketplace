@@ -1,0 +1,13 @@
+# Netlify (free tier) deployment for the Next.js app.
+# The Next.js runtime is auto-installed by Netlify; the plugin is listed so the
+# configuration is explicit and reproducible.
+[build]
+  command = "yarn build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NEXT_TELEMETRY_DISABLED = "1"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

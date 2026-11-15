@@ -1,7 +1,8 @@
 "use client";
 
-import { Car as CarIcon, Heart, Loader2 } from "lucide-react";
+import { Car as CarIcon, Heart, Loader2, Store } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -105,6 +106,19 @@ export const CarCard = ({ car }: CarCardProps) => {
             {formatCurrency(car.price)}
           </span>
         </div>
+
+        {car.dealer && (
+          <Link
+            href={ROUTES.DEALER_PROFILE(car.dealer.slug)}
+            className="mb-2 flex items-center gap-1 text-gray-500 text-sm hover:text-blue-600"
+          >
+            <Store className="h-4 w-4" />
+            <span className="line-clamp-1">
+              {car.dealer.name}
+              {car.dealer.city ? ` · ${car.dealer.city}` : ""}
+            </span>
+          </Link>
+        )}
 
         <div className="mb-2 flex items-center text-gray-600">
           <span>{car.year}</span>

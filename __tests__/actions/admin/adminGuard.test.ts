@@ -127,6 +127,37 @@ describe("getAdmin", () => {
     expect(result.reason).toBe("not-admin");
   });
 
+  it("authorizes dealers with an active dealer profile", async () => {
+    mocks.userBuilder.b.single.mockResolvedValue({
+      data: { id: "user-1", role: UserRole.DEALER },
+      error: null,
+    });
+    mocks.userBuilder.b.maybeSingle.mockResolvedValue({
+      data: { id: "dealer-1", status: "ACTIVE" },
+      error: null,
+    });
+
+    const result = await getAdmin();
+
+    expect(result.authorized).toBe(true);
+    expect(mocks.userBuilder.b.eq).toHaveBeenCalledWith("ownerId", "user-1");
+  });
+
+  it("denies dealers whose profile is suspended", async () => {
+    mocks.userBuilder.b.single.mockResolvedValue({
+      data: { id: "user-1", role: UserRole.DEALER },
+      error: null,
+    });
+    mocks.userBuilder.b.maybeSingle.mockResolvedValue({
+      data: { id: "dealer-1", status: "SUSPENDED" },
+      error: null,
+    });
+
+    const result = await getAdmin();
+
+    expect(result).toEqual({ authorized: false, reason: "not-admin" });
+  });
+
   it("authorizes admins and returns the user row", async () => {
     const result = await getAdmin();
 
@@ -154,7 +185,37 @@ describe("getDashboardData", () => {
     const result = await getDashboardData();
 
     expect(result.success).toBe(false);
-    expect(result.error).toBe("Unauthorized");
+    expect(result.error).toContain("Unauthorized");
+  });
+
+  it("scopes KPIs to the dealer's own inventory for dealers", async () => {
+    mocks.userBuilder.b.single.mockResolvedValue({
+      data: { id: "user-1", role: UserRole.DEALER },
+      error: null,
+    });
+    mocks.userBuilder.b.maybeSingle.mockResolvedValue({
+      data: { id: "dealer-1", status: "ACTIVE" },
+      error: null,
+    });
+    mocks.carBuilder.b.select.mockReturnValue(mocks.carBuilder.chainProxy);
+    mocks.carBuilder.b.eq.mockResolvedValue({
+      data: [{ id: "car-1", status: "AVAILABLE", featured: false }],
+      error: null,
+    });
+    mocks.testDriveBuilder.b.select.mockReturnValue(
+      mocks.testDriveBuilder.chainProxy,
+    );
+    mocks.testDriveBuilder.b.eq.mockResolvedValue({ data: [], error: null });
+
+    const result = await getDashboardData();
+
+    expect(result.success).toBe(true);
+    expect(result.data?.cars.total).toBe(1);
+    expect(mocks.carBuilder.b.eq).toHaveBeenCalledWith("dealerId", "dealer-1");
+    expect(mocks.testDriveBuilder.b.eq).toHaveBeenCalledWith(
+      "dealerId",
+      "dealer-1",
+    );
   });
 
   it("aggregates car counts by status and featured flag", async () => {

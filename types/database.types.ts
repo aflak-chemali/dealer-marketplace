@@ -45,6 +45,7 @@ export type Database = {
           carColorId: string;
           carMakeId: string;
           createdAt: string;
+          dealerId: string | null;
           description: string;
           featured: boolean;
           features: string[] | null;
@@ -67,6 +68,7 @@ export type Database = {
           carColorId: string;
           carMakeId: string;
           createdAt?: string;
+          dealerId?: string | null;
           description: string;
           featured?: boolean;
           features?: string[] | null;
@@ -89,6 +91,7 @@ export type Database = {
           carColorId?: string;
           carMakeId?: string;
           createdAt?: string;
+          dealerId?: string | null;
           description?: string;
           featured?: boolean;
           features?: string[] | null;
@@ -107,6 +110,13 @@ export type Database = {
           year?: number;
         };
         Relationships: [
+          {
+            foreignKeyName: "Car_dealerId_fkey";
+            columns: ["dealerId"];
+            isOneToOne: false;
+            referencedRelation: "Dealer";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "Car_carColorId_fkey";
             columns: ["carColorId"];
@@ -173,6 +183,71 @@ export type Database = {
           updatedAt?: string;
         };
         Relationships: [];
+      };
+      Dealer: {
+        Row: {
+          address: string | null;
+          assetsSizeBytes: number;
+          bio: string | null;
+          city: string | null;
+          coverImageUrl: string | null;
+          createdAt: string;
+          email: string | null;
+          id: string;
+          logoUrl: string | null;
+          name: string;
+          ownerId: string;
+          phone: string | null;
+          slug: string;
+          status: Database["public"]["Enums"]["DealerStatus"];
+          updatedAt: string;
+          whatsappPhone: string | null;
+        };
+        Insert: {
+          address?: string | null;
+          assetsSizeBytes?: number;
+          bio?: string | null;
+          city?: string | null;
+          coverImageUrl?: string | null;
+          createdAt?: string;
+          email?: string | null;
+          id?: string;
+          logoUrl?: string | null;
+          name: string;
+          ownerId: string;
+          phone?: string | null;
+          slug: string;
+          status?: Database["public"]["Enums"]["DealerStatus"];
+          updatedAt?: string;
+          whatsappPhone?: string | null;
+        };
+        Update: {
+          address?: string | null;
+          assetsSizeBytes?: number;
+          bio?: string | null;
+          city?: string | null;
+          coverImageUrl?: string | null;
+          createdAt?: string;
+          email?: string | null;
+          id?: string;
+          logoUrl?: string | null;
+          name?: string;
+          ownerId?: string;
+          phone?: string | null;
+          slug?: string;
+          status?: Database["public"]["Enums"]["DealerStatus"];
+          updatedAt?: string;
+          whatsappPhone?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "Dealer_ownerId_fkey";
+            columns: ["ownerId"];
+            isOneToOne: false;
+            referencedRelation: "User";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       DealershipInfo: {
         Row: {
@@ -290,6 +365,7 @@ export type Database = {
           bookingDate: string;
           carId: string;
           createdAt: string;
+          dealerId: string | null;
           endTime: string;
           id: string;
           notes: string | null;
@@ -302,6 +378,7 @@ export type Database = {
           bookingDate: string;
           carId: string;
           createdAt?: string;
+          dealerId?: string | null;
           endTime: string;
           id?: string;
           notes?: string | null;
@@ -314,6 +391,7 @@ export type Database = {
           bookingDate?: string;
           carId?: string;
           createdAt?: string;
+          dealerId?: string | null;
           endTime?: string;
           id?: string;
           notes?: string | null;
@@ -323,6 +401,13 @@ export type Database = {
           userId?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "TestDriveBooking_dealerId_fkey";
+            columns: ["dealerId"];
+            isOneToOne: false;
+            referencedRelation: "Dealer";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "TestDriveBooking_carId_fkey";
             columns: ["carId"];
@@ -416,7 +501,8 @@ export type Database = {
           closeTime: string;
           createdAt: string;
           dayOfWeek: Database["public"]["Enums"]["DayOfWeek"];
-          dealershipId: string;
+          dealerId: string | null;
+          dealershipId: string | null;
           id: string;
           isOpen: boolean;
           openTime: string;
@@ -426,7 +512,8 @@ export type Database = {
           closeTime: string;
           createdAt?: string;
           dayOfWeek: Database["public"]["Enums"]["DayOfWeek"];
-          dealershipId: string;
+          dealerId?: string | null;
+          dealershipId?: string | null;
           id?: string;
           isOpen?: boolean;
           openTime: string;
@@ -436,13 +523,21 @@ export type Database = {
           closeTime?: string;
           createdAt?: string;
           dayOfWeek?: Database["public"]["Enums"]["DayOfWeek"];
-          dealershipId?: string;
+          dealerId?: string | null;
+          dealershipId?: string | null;
           id?: string;
           isOpen?: boolean;
           openTime?: string;
           updatedAt?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "WorkingHour_dealerId_fkey";
+            columns: ["dealerId"];
+            isOneToOne: false;
+            referencedRelation: "Dealer";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "WorkingHour_dealershipId_fkey";
             columns: ["dealershipId"];
@@ -476,7 +571,8 @@ export type Database = {
         | "FRIDAY"
         | "SATURDAY"
         | "SUNDAY";
-      UserRole: "USER" | "ADMIN";
+      DealerStatus: "ACTIVE" | "SUSPENDED";
+      UserRole: "USER" | "DEALER" | "ADMIN";
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -627,7 +723,8 @@ export const Constants = {
         "SATURDAY",
         "SUNDAY",
       ],
-      UserRole: ["USER", "ADMIN"],
+      DealerStatus: ["ACTIVE", "SUSPENDED"],
+      UserRole: ["USER", "DEALER", "ADMIN"],
     },
   },
 } as const;

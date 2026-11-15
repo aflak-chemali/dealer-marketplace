@@ -62,22 +62,22 @@ describe("checkStorageQuota", () => {
     vi.clearAllMocks();
   });
 
-  it("allows usage below the limit (50 GB default)", async () => {
+  it("allows usage below the limit (1 GB default)", async () => {
     mocks.rpc.mockResolvedValue({
-      data: 10 * 1024 * 1024 * 1024,
+      data: 200 * 1024 * 1024,
       error: null,
     });
 
     const result = await checkStorageQuota();
 
     expect(result.allowed).toBe(true);
-    expect(result.usageBytes).toBe(10 * 1024 * 1024 * 1024);
-    expect(result.limitBytes).toBe(50 * 1024 * 1024 * 1024);
+    expect(result.usageBytes).toBe(200 * 1024 * 1024);
+    expect(result.limitBytes).toBe(1 * 1024 * 1024 * 1024);
   });
 
   it("allows usage exactly at the limit", async () => {
     mocks.rpc.mockResolvedValue({
-      data: 50 * 1024 * 1024 * 1024,
+      data: 1 * 1024 * 1024 * 1024,
       error: null,
     });
 
@@ -88,7 +88,7 @@ describe("checkStorageQuota", () => {
 
   it("denies usage above the limit", async () => {
     mocks.rpc.mockResolvedValue({
-      data: 51 * 1024 * 1024 * 1024,
+      data: 1.1 * 1024 * 1024 * 1024,
       error: null,
     });
 
@@ -99,7 +99,7 @@ describe("checkStorageQuota", () => {
 
   it("factors incoming bytes into the allowance decision", async () => {
     mocks.rpc.mockResolvedValue({
-      data: 49.9 * 1024 * 1024 * 1024,
+      data: 0.9 * 1024 * 1024 * 1024,
       error: null,
     });
 

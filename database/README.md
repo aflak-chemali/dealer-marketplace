@@ -14,6 +14,8 @@ This project manages Supabase declarative configuration and database migrations 
   * `20261004000003_policies.sql` (privileges, Row Level Security, table policies)
   * `20261004000004_storage.sql` (storage buckets & RLS policies for `car-images` and `branding-assets`)
   * `20261004000005_logo_branding.sql` (branding metadata columns)
+  * `20261115000001_dealer_enums.sql` (`DEALER` role, `DealerStatus` enum)
+  * `20261115000002_dealers.sql` (`Dealer` table, `dealerId` columns, dealer-scoped RLS and storage, backfill of existing data into a `main-dealer` profile)
 * **`supabase/seed.sql`**: Initial development seed data applied during `supabase db reset`.
 * **`database/`**: Legacy standalone SQL scripts preserved for manual reference.
 

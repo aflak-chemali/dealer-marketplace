@@ -1,4 +1,5 @@
 import type { CarStatus } from "@/enums/car-status";
+import type { DealerSummary } from "@/types/dealer/dealer-summary";
 
 /**
  * Normalised car listing entity used by app routes, cards, and client components.
@@ -47,4 +48,8 @@ export interface Car {
   createdAt: Date | string;
   /** Last update timestamp. */
   updatedAt: Date | string;
+  /** Dealer that owns this listing (null for legacy rows). */
+  dealerId?: string | null;
+  /** Owning dealer summary, when joined. */
+  dealer?: DealerSummary | null;
 }

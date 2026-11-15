@@ -103,7 +103,10 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("@/lib/arcjet", () => ({ default: {} }));
 vi.mock("@/config/env", () => ({
-  env: { NEXT_PUBLIC_SUPABASE_URL: "https://sup.example.com" },
+  env: {
+    NEXT_PUBLIC_SUPABASE_URL: "https://sup.example.com",
+    NEXT_PUBLIC_MAX_IMAGES_PER_CAR: 8,
+  },
 }));
 vi.mock("uuid", () => ({ v4: () => "generated-car-id" }));
 vi.mock("@/actions/storage/check-storage-quota", () => ({
@@ -144,6 +147,21 @@ const carData = {
 const authenticateAsAdmin = () => {
   h.authUser.value = adminUser;
   h.singleQueues.User = [{ data: dbAdmin, error: null }];
+  // Admins need their own dealer profile to create listings
+  h.maybeQueues.Dealer = [
+    { data: { id: "dealer-1", status: "ACTIVE" }, error: null },
+  ];
+};
+
+/** Authenticates as a DEALER owning "dealer-1". */
+const authenticateAsDealer = () => {
+  h.authUser.value = { id: "auth-dealer" };
+  h.singleQueues.User = [
+    { data: { id: "db-dealer", role: "DEALER" }, error: null },
+  ];
+  h.maybeQueues.Dealer = [
+    { data: { id: "dealer-1", status: "ACTIVE" }, error: null },
+  ];
 };
 
 describe("addCar", () => {
@@ -151,6 +169,7 @@ describe("addCar", () => {
     vi.clearAllMocks();
     for (const k of Object.keys(h.results)) delete h.results[k];
     for (const k of Object.keys(h.singleQueues)) delete h.singleQueues[k];
+    for (const k of Object.keys(h.maybeQueues)) delete h.maybeQueues[k];
     h.authUser.value = null;
     h.getUserError.value = null;
     h.adminStorage.upload.mockResolvedValue({ data: {}, error: null });
@@ -170,19 +189,47 @@ describe("addCar", () => {
 
     expect(res.success).toBe(true);
     expect(h.adminStorage.upload).toHaveBeenCalledWith(
-      expect.stringContaining("cars/generated-car-id/image-"),
+      expect.stringContaining("dealers/dealer-1/cars/generated-car-id/image-"),
       expect.any(Buffer),
       { contentType: "image/jpeg" },
     );
     expect(h.builders.Car.insert).toHaveBeenCalledWith(
       expect.objectContaining({
         id: "generated-car-id",
+        dealerId: "dealer-1",
         model: "Model S",
         price: "50000",
         storage_bytes: 3,
       }),
     );
     expect(revalidatePath).toHaveBeenCalledWith("/admin/cars");
+  });
+
+  it("requires admins to have a dealer profile before listing", async () => {
+    authenticateAsAdmin();
+    h.maybeQueues.Dealer = [{ data: null, error: null }];
+
+    await expect(addCar(makeFormData())).rejects.toThrow(
+      /Create a dealer profile/,
+    );
+  });
+
+  it("rejects suspended dealers", async () => {
+    authenticateAsDealer();
+    h.maybeQueues.Dealer = [
+      { data: { id: "dealer-1", status: "SUSPENDED" }, error: null },
+    ];
+
+    await expect(addCar(makeFormData())).rejects.toThrow(/Unauthorized access/);
+  });
+
+  it("rejects listings above the per-car image cap", async () => {
+    authenticateAsDealer();
+    const fd = makeFormData();
+    for (let i = 0; i < 8; i++) fd.append("images", makeImage(`x${i}.jpg`));
+
+    await expect(addCar(fd)).rejects.toThrow(/at most 8 images/);
+    expect(h.adminStorage.upload).not.toHaveBeenCalled();
   });
 
   it("throws when car data is missing", async () => {
@@ -250,6 +297,7 @@ describe("updateCar", () => {
     vi.clearAllMocks();
     for (const k of Object.keys(h.results)) delete h.results[k];
     for (const k of Object.keys(h.singleQueues)) delete h.singleQueues[k];
+    for (const k of Object.keys(h.maybeQueues)) delete h.maybeQueues[k];
     h.authUser.value = null;
     h.getUserError.value = null;
     h.adminStorage.upload.mockResolvedValue({ data: {}, error: null });
@@ -308,6 +356,19 @@ describe("updateCar", () => {
     expect(revalidatePath).toHaveBeenCalledWith(
       expect.stringContaining("cars/car-1"),
     );
+  });
+
+  it("hides cars owned by other dealers", async () => {
+    authenticateAsDealer();
+    h.singleQueues.Car = [
+      { data: { images: ["kept.jpg"], dealerId: "dealer-2" }, error: null },
+    ];
+
+    const res = await updateCar(makeFormData());
+
+    expect(res.success).toBe(false);
+    expect(res.error).toBe("Car not found");
+    expect(h.builders.Car.update).not.toHaveBeenCalled();
   });
 
   it("returns error when car does not exist", async () => {
@@ -407,6 +468,18 @@ describe("deleteCar", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/admin/cars");
   });
 
+  it("refuses to delete another dealer's car", async () => {
+    authenticateAsDealer();
+    h.maybeQueues.Car = [{ data: null, error: null }];
+
+    const res = await deleteCar("car-1");
+
+    expect(res.success).toBe(false);
+    expect(res.error).toContain("Car not found");
+    expect(h.builders.Car.eq).toHaveBeenCalledWith("dealerId", "dealer-1");
+    expect(h.builders.Car.delete).not.toHaveBeenCalled();
+  });
+
   it("proceeds even when storage cleanup fails", async () => {
     h.adminStorage.list.mockRejectedValue(new Error("storage down"));
 
@@ -466,6 +539,15 @@ describe("updateCarStatus", () => {
     expect(h.builders.Car.update).toHaveBeenCalledWith({ status: "SOLD" });
     expect(h.builders.Car.eq).toHaveBeenCalledWith("id", "car-1");
     expect(revalidatePath).toHaveBeenCalledWith("/admin/cars");
+  });
+
+  it("scopes dealer updates to their own cars", async () => {
+    authenticateAsDealer();
+
+    const res = await updateCarStatus("car-1", { status: "SOLD" as never });
+
+    expect(res.success).toBe(true);
+    expect(h.builders.Car.eq).toHaveBeenCalledWith("dealerId", "dealer-1");
   });
 
   it("updates featured only", async () => {

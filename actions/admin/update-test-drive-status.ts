@@ -3,9 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { ROUTES } from "@/config/routes";
 import { BookingStatusEnum as BookingStatus } from "@/enums/booking-status";
-import { UserRoleEnum as UserRole } from "@/enums/user-role";
 import { getLogger } from "@/lib/logger";
-import { createClient } from "@/lib/supabase/supabase";
+import { ensureDealerUser } from "@/lib/supabase/ensure-dealer-user";
 import type { ActionResponse } from "@/types/common/action-response";
 
 const log = getLogger(["app", "actions", "admin"]);
@@ -25,28 +24,7 @@ export async function updateTestDriveStatus(
   newStatus: BookingStatus,
 ): Promise<ActionResponse<string>> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user: authUser },
-      error: authError,
-    } = await supabase.auth.getUser();
-    if (authError || !authUser) {
-      log.warn("Unauthorized attempt to update test drive status");
-      throw new Error("Unauthorized");
-    }
-
-    // Verify admin status
-    const { data: user } = await supabase
-      .from("User")
-      .select("*")
-      .eq("supabaseAuthUserId", authUser.id)
-      .single();
-
-    if (!user || user.role !== UserRole.ADMIN) {
-      log.warn("Forbidden attempt to update test drive status");
-      throw new Error("Unauthorized access");
-    }
+    const { supabase, dealerId, isSuperAdmin } = await ensureDealerUser();
 
     // Get the booking
     const { data: booking } = await supabase
@@ -55,7 +33,8 @@ export async function updateTestDriveStatus(
       .eq("id", bookingId)
       .single();
 
-    if (!booking) {
+    // Dealers can only manage bookings for their own cars
+    if (!booking || (!isSuperAdmin && booking.dealerId !== dealerId)) {
       throw new Error("Booking not found");
     }
 

@@ -4,14 +4,15 @@ import { getColorIdsForTerm } from "@/actions/cars/get-color-ids-for-term";
 import { getMakeIdsForTerm } from "@/actions/cars/get-make-ids-for-term";
 import { serializeCarData } from "@/lib/helpers/serialize-car";
 import { getLogger } from "@/lib/logger";
-import { ensureAdminUser } from "@/lib/supabase/ensure-admin-user";
+import { ensureDealerUser } from "@/lib/supabase/ensure-dealer-user";
 import type { SerializedCar } from "@/types/car/serialized-car";
 import type { ActionResponse } from "@/types/common/action-response";
 
 const log = getLogger(["app", "actions", "cars"]);
 
 /**
- * Fetches all cars for admin management.
+ * Fetches cars for the dealer portal: the caller's own inventory, or every
+ * listing for platform admins.
  * Supports search across make, color, model, plate.
  * No pagination - returns full list sorted by newest.
  *
@@ -23,7 +24,7 @@ export async function getCars(
 ): Promise<ActionResponse<SerializedCar[]>> {
   log.debug("Fetching all cars (search: '{search}')", { search });
   try {
-    const { supabase } = await ensureAdminUser();
+    const { supabase, dealerId, isSuperAdmin } = await ensureDealerUser();
 
     // Build query
     let query = supabase
@@ -32,10 +33,16 @@ export async function getCars(
         `
         *,
         carMake:CarMake(id, name, slug),
-        carColor:CarColor(id, name, slug)
+        carColor:CarColor(id, name, slug),
+        dealer:Dealer(id, name, slug, city, logoUrl)
       `,
       )
       .order("createdAt", { ascending: false });
+
+    // Dealers only manage their own inventory
+    if (!isSuperAdmin) {
+      query = query.eq("dealerId", dealerId);
+    }
 
     // Add search filter
     if (search) {

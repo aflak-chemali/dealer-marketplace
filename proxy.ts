@@ -45,36 +45,42 @@ const isMcpRoute = (pathname: string): boolean => {
  * Arcjet security proxy for browser and general web routes.
  * Enables shield protection and bot detection.
  * Allows search engine crawlers.
+ * Disabled (null) when ARCJET_KEY is not configured.
  *
  * @see https://arcjet.com/bot-list
  */
-const ajBrowser = arcjet({
-  key: env.ARCJET_KEY,
-  rules: [
-    shield({
-      mode: "LIVE",
-    }),
-    detectBot({
-      mode: "LIVE", // will block requests. Use "DRY_RUN" to log only
-      allow: [
-        "CATEGORY:SEARCH_ENGINE", // Google, Bing, etc
+const ajBrowser = env.ARCJET_KEY
+  ? arcjet({
+      key: env.ARCJET_KEY,
+      rules: [
+        shield({
+          mode: "LIVE",
+        }),
+        detectBot({
+          mode: "LIVE", // will block requests. Use "DRY_RUN" to log only
+          allow: [
+            "CATEGORY:SEARCH_ENGINE", // Google, Bing, etc
+          ],
+        }),
       ],
-    }),
-  ],
-});
+    })
+  : null;
 
 /**
  * Arcjet security proxy for MCP endpoints.
  * Protects via Shield WAF while permitting MCP clients (Claude, Cursor, Copilot).
+ * Disabled (null) when ARCJET_KEY is not configured.
  */
-const ajMcp = arcjet({
-  key: env.ARCJET_KEY,
-  rules: [
-    shield({
-      mode: "LIVE",
-    }),
-  ],
-});
+const ajMcp = env.ARCJET_KEY
+  ? arcjet({
+      key: env.ARCJET_KEY,
+      rules: [
+        shield({
+          mode: "LIVE",
+        }),
+      ],
+    })
+  : null;
 
 /**
  * Supabase session management proxy.
@@ -157,8 +163,11 @@ async function supabaseProxy(request: NextRequest) {
 
 /**
  * Pre-configured middleware for browser traffic (Arcjet shield + detectBot + Supabase session proxy).
+ * Falls back to the Supabase session proxy alone when Arcjet is disabled.
  */
-const browserMiddleware = createMiddleware(ajBrowser, supabaseProxy);
+const browserMiddleware = ajBrowser
+  ? createMiddleware(ajBrowser, supabaseProxy)
+  : (request: NextRequest, _event: NextFetchEvent) => supabaseProxy(request);
 
 /**
  * Main application proxy pipeline.
@@ -174,6 +183,9 @@ export default async function middleware(
   const pathname = request.nextUrl.pathname;
 
   if (isMcpRoute(pathname)) {
+    if (!ajMcp) {
+      return NextResponse.next();
+    }
     const decision = await ajMcp.protect(request);
     if (decision.isDenied()) {
       if (decision.reason.isRateLimit()) {

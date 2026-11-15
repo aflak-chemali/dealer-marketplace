@@ -97,7 +97,8 @@ export async function getCars(
         `
         *,
         carMake:CarMake(id, name, slug),
-        carColor:CarColor(id, name, slug)
+        carColor:CarColor(id, name, slug),
+        dealer:Dealer(id, name, slug, city, logoUrl)
       `,
         { count: "exact" },
       )

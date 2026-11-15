@@ -6,13 +6,29 @@ import { checkStorageQuota } from "@/actions/storage/check-storage-quota";
 import { env } from "@/config/env";
 import { ROUTES } from "@/config/routes";
 import type { CarStatusEnum as CarStatus } from "@/enums/car-status";
-import { UserRoleEnum as UserRole } from "@/enums/user-role";
 import { getLogger } from "@/lib/logger";
-import { createAdminClient, createClient } from "@/lib/supabase/supabase";
+import {
+  carStorageFolder,
+  ensureDealerUser,
+} from "@/lib/supabase/ensure-dealer-user";
+import { createAdminClient } from "@/lib/supabase/supabase";
 import type { CarFormData } from "@/types/car/car-form-data";
 import type { ActionResponse } from "@/types/common/action-response";
 
 const log = getLogger(["app", "actions", "cars"]);
+
+const MAX_IMAGES_PER_CAR = env.NEXT_PUBLIC_MAX_IMAGES_PER_CAR ?? 8;
+
+/** Extracts the object path inside the `car-images` bucket from a public URL. */
+function storagePathFromUrl(imageUrl: string): string | null {
+  try {
+    const url = new URL(imageUrl);
+    const pathMatch = url.pathname.match(/\/car-images\/(.*)/);
+    return pathMatch ? decodeURIComponent(pathMatch[1]) : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Updates existing car with data and image changes.
@@ -38,30 +54,20 @@ export async function updateCar(
     const imagesToRemove = (formData.getAll("imagesToRemove") ||
       []) as string[];
 
-    const supabase = await createClient();
-
-    const {
-      data: { user: authUser },
-      error: authError,
-    } = await supabase.auth.getUser();
-    if (authError || !authUser) throw new Error("Unauthorized");
-
-    const { data: user } = await supabase
-      .from("User")
-      .select("*")
-      .eq("supabaseAuthUserId", authUser.id)
-      .single();
-
-    if (!user || user.role !== UserRole.ADMIN) throw new Error("Unauthorized");
+    const { supabase, dealerId, isSuperAdmin } = await ensureDealerUser();
 
     // Get current car data
     const { data: existingCar, error: fetchError } = await supabase
       .from("Car")
-      .select("images")
+      .select("images, dealerId")
       .eq("id", carId)
       .single();
 
-    if (fetchError || !existingCar) {
+    if (
+      fetchError ||
+      !existingCar ||
+      (!isSuperAdmin && existingCar.dealerId !== dealerId)
+    ) {
       return {
         success: false,
         error: "Car not found",
@@ -76,25 +82,37 @@ export async function updateCar(
     const newImagesSize = newImages.reduce((acc, img) => acc + img.size, 0);
     let removedImagesSize = 0;
 
+    const remainingCount = existingCar.images.filter(
+      (img: string) => !imagesToRemove.includes(img),
+    ).length;
+    if (remainingCount + newImages.length > MAX_IMAGES_PER_CAR) {
+      throw new Error(
+        `A listing can have at most ${MAX_IMAGES_PER_CAR} images.`,
+      );
+    }
+
     if (imagesToRemove.length > 0) {
-      const folderPath = `cars/${carId}`;
-      const { data: storageFiles } = await supabaseAdmin.storage
-        .from("car-images")
-        .list(folderPath);
+      // Group removed files by their storage directory (legacy or dealer-scoped)
+      const removedByDir = new Map<string, string[]>();
+      for (const url of imagesToRemove) {
+        const path = storagePathFromUrl(url);
+        if (!path) continue;
+        const idx = path.lastIndexOf("/");
+        const dir = path.slice(0, idx);
+        const name = path.slice(idx + 1);
+        removedByDir.set(dir, [...(removedByDir.get(dir) ?? []), name]);
+      }
 
-      if (storageFiles) {
-        const removedFileNames = imagesToRemove.map((url) => {
-          try {
-            const u = new URL(url);
-            return u.pathname.split("/").pop();
-          } catch {
-            return url.split("/").pop();
-          }
-        });
+      for (const [dir, names] of removedByDir) {
+        const { data: storageFiles } = await supabaseAdmin.storage
+          .from("car-images")
+          .list(dir);
 
-        removedImagesSize = storageFiles
-          .filter((f) => f.name && removedFileNames.includes(f.name))
-          .reduce((acc, f) => acc + (f.metadata?.size || 0), 0);
+        if (storageFiles) {
+          removedImagesSize += storageFiles
+            .filter((f) => f.name && names.includes(f.name))
+            .reduce((acc, f) => acc + (f.metadata?.size || 0), 0);
+        }
       }
     }
 
@@ -110,11 +128,7 @@ export async function updateCar(
     // Remove images if requested
     if (imagesToRemove.length > 0) {
       const filePaths = imagesToRemove
-        .map((imageUrl: string) => {
-          const url = new URL(imageUrl);
-          const pathMatch = url.pathname.match(/\/car-images\/(.*)/);
-          return pathMatch ? pathMatch[1] : null;
-        })
+        .map(storagePathFromUrl)
         .filter((path: string | null): path is string => path !== null);
 
       if (filePaths.length > 0) {
@@ -139,7 +153,7 @@ export async function updateCar(
       // Validate new image sizes
       validateFileSizes(newImages);
 
-      const folderPath = `cars/${carId}`;
+      const folderPath = carStorageFolder(carId, existingCar.dealerId);
       const newImageUrls: string[] = [];
 
       for (let i = 0; i < newImages.length; i++) {

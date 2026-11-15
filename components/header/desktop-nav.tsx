@@ -41,6 +41,7 @@ export const DesktopNav = ({
         // Check if item should be shown based on auth and role
         if (item.requiresAuth && !isAuthenticated) return null;
         if (item.hideForAdmin && isAdmin) return null;
+        if (item.superAdminOnly && !isAdmin) return null;
 
         return (
           <Link key={item.href} href={item.href}>

@@ -1,4 +1,6 @@
-import { LocateFixed, Mail, MapPin, Phone } from "lucide-react";
+import { LocateFixed, Mail, MapPin, Phone, Store } from "lucide-react";
+import Link from "next/link";
+import { ROUTES } from "@/config/routes";
 import { DayOfWeekEnum as DayOfWeek } from "@/enums/day-of-week";
 import type { SerializedDealershipInfo } from "@/types/dealership/serialized-dealership-info";
 import type { SerializedWorkingHour } from "@/types/dealership/serialized-working-hour";
@@ -40,7 +42,18 @@ export function CarDealershipInfo({ dealership }: CarDealershipInfoProps) {
 
   return (
     <div className="mt-8 rounded-lg bg-white p-6 shadow-sm">
-      <h2 className="mb-6 font-bold text-2xl">Dealership Location</h2>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="font-bold text-2xl">Dealership Location</h2>
+        {dealership?.slug && (
+          <Link
+            href={ROUTES.DEALER_PROFILE(dealership.slug)}
+            className="flex items-center gap-2 font-medium text-blue-600 hover:underline"
+          >
+            <Store className="h-4 w-4" />
+            View dealer profile
+          </Link>
+        )}
+      </div>
       <div className="rounded-lg bg-gray-50 p-6">
         <div className="flex flex-col justify-between gap-6 md:flex-row">
           {/* Dealership Name and Address */}
@@ -48,7 +61,15 @@ export function CarDealershipInfo({ dealership }: CarDealershipInfoProps) {
             <div className="flex flex-1 flex-col gap-5 text-lg">
               <div className="flex items-start gap-3">
                 <LocateFixed className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
-                <h4 className="font-medium">{dealership?.name}</h4>
+                <h4 className="font-medium">
+                  {dealership?.name}
+                  {dealership?.city ? (
+                    <span className="font-normal text-gray-500">
+                      {" "}
+                      · {dealership.city}
+                    </span>
+                  ) : null}
+                </h4>
               </div>
               <div className="flex items-start gap-3">
                 <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-gray-500" />

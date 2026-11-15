@@ -166,6 +166,22 @@ describe("bookTestDrive", () => {
     expect(result.error).toContain("not available");
   });
 
+  it("prevents dealers from booking their own listing", async () => {
+    mocks.carBuilder.b.single.mockResolvedValue({
+      data: {
+        id: "car-1",
+        status: CarStatus.AVAILABLE,
+        dealer: { ownerId: "user-1" },
+      },
+      error: null,
+    });
+
+    const result = await bookTestDrive(formData);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("your own listing");
+  });
+
   it("checks availability with status filter on the car lookup", async () => {
     await bookTestDrive(formData);
 

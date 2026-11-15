@@ -1,104 +1,112 @@
 "use client";
 
-import { Building2, Clock, Home, Shield } from "lucide-react";
+import {
+  Building2,
+  Clock,
+  Home,
+  type LucideIcon,
+  Shield,
+  Store,
+} from "lucide-react";
+import type { ReactNode } from "react";
 import { AdminUsersList } from "@/app/(admin)/admin/settings/_components/admin-users-list";
+import { DealerProfileSettings } from "@/app/(admin)/admin/settings/_components/dealer-profile-settings";
 import { DealershipInfoForm } from "@/app/(admin)/admin/settings/_components/dealership-info-form";
 import { HomeContentForm } from "@/app/(admin)/admin/settings/_components/home-content-form";
 import { WorkingHoursForm } from "@/app/(admin)/admin/settings/_components/working-hours-form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 /**
- * Admin settings page with tabs.
- * Dealership Info: Contact details form.
- * Working Hours: Weekly schedule editor.
- * Admin Users: Role assignment table.
- * Home Data: Homepage copy and FAQ editor.
- * Prevents admins from changing their own role.
- *
- * @returns Settings page with dealership configuration tabs
- * @see DealershipInfoForm for contact and logo settings
- * @see WorkingHoursForm for weekly schedule editing
- * @see AdminUsersList for admin role management
- * @see HomeContentForm for homepage content and FAQs
+ * Props for {@link SettingsForm}.
  */
-export const SettingsForm = () => {
+interface SettingsFormProps {
+  /** Whether the viewer is a platform admin (shows platform-wide tabs). */
+  isSuperAdmin?: boolean;
+}
+
+interface SettingsTab {
+  value: string;
+  icon: LucideIcon;
+  label: [string, string];
+  content: ReactNode;
+  superAdminOnly?: boolean;
+}
+
+const TABS: SettingsTab[] = [
+  {
+    value: "dealer",
+    icon: Store,
+    label: ["Dealer", "Profile"],
+    content: <DealerProfileSettings />,
+  },
+  {
+    value: "hours",
+    icon: Clock,
+    label: ["Working", "Hours"],
+    content: <WorkingHoursForm />,
+  },
+  {
+    value: "info",
+    icon: Building2,
+    label: ["Site", "Branding"],
+    content: <DealershipInfoForm />,
+    superAdminOnly: true,
+  },
+  {
+    value: "admins",
+    icon: Shield,
+    label: ["Admin", "Users"],
+    content: <AdminUsersList />,
+    superAdminOnly: true,
+  },
+  {
+    value: "home-data",
+    icon: Home,
+    label: ["Home", "Data"],
+    content: <HomeContentForm />,
+    superAdminOnly: true,
+  },
+];
+
+/**
+ * Portal settings with tabs.
+ * Dealer Profile / Working Hours: the signed-in dealer's public profile.
+ * Site Branding, Admin Users, Home Data: platform-wide, superadmins only.
+ *
+ * @param isSuperAdmin - Whether to show platform-wide tabs
+ * @returns Settings page with configuration tabs
+ */
+export const SettingsForm = ({ isSuperAdmin = false }: SettingsFormProps) => {
+  const tabs = TABS.filter((tab) => isSuperAdmin || !tab.superAdminOnly);
+
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="info">
+      <Tabs defaultValue="dealer">
         <TabsList className="h-auto w-full md:h-9 md:w-auto md:self-start">
-          <TabsTrigger
-            value="info"
-            className="h-auto flex-1 py-2 md:flex-none md:py-1"
-          >
-            <div className="flex flex-col items-center gap-1 md:flex-row md:gap-2">
-              <Building2 className="h-5 w-5 md:h-4 md:w-4" />
-              <span className="text-xs md:hidden">
-                Dealership
-                <br />
-                Info
-              </span>
-              <span className="hidden md:inline">Dealership Info</span>
-            </div>
-          </TabsTrigger>
-          <TabsTrigger
-            value="hours"
-            className="h-auto flex-1 py-2 md:flex-none md:py-1"
-          >
-            <div className="flex flex-col items-center gap-1 md:flex-row md:gap-2">
-              <Clock className="h-5 w-5 md:h-4 md:w-4" />
-              <span className="text-xs md:hidden">
-                Working
-                <br />
-                Hours
-              </span>
-              <span className="hidden md:inline">Working Hours</span>
-            </div>
-          </TabsTrigger>
-          <TabsTrigger
-            value="admins"
-            className="h-auto flex-1 py-2 md:flex-none md:py-1"
-          >
-            <div className="flex flex-col items-center gap-1 md:flex-row md:gap-2">
-              <Shield className="h-5 w-5 md:h-4 md:w-4" />
-              <span className="text-xs md:hidden">
-                Admin
-                <br />
-                Users
-              </span>
-              <span className="hidden md:inline">Admin Users</span>
-            </div>
-          </TabsTrigger>
-          <TabsTrigger
-            value="home-data"
-            className="h-auto flex-1 py-2 md:flex-none md:py-1"
-          >
-            <div className="flex flex-col items-center gap-1 md:flex-row md:gap-2">
-              <Home className="h-5 w-5 md:h-4 md:w-4" />
-              <span className="text-xs md:hidden">
-                Home
-                <br />
-                Data
-              </span>
-              <span className="hidden md:inline">Home Data</span>
-            </div>
-          </TabsTrigger>
+          {tabs.map(({ value, icon: Icon, label }) => (
+            <TabsTrigger
+              key={value}
+              value={value}
+              className="h-auto flex-1 py-2 md:flex-none md:py-1"
+            >
+              <div className="flex flex-col items-center gap-1 md:flex-row md:gap-2">
+                <Icon className="h-5 w-5 md:h-4 md:w-4" />
+                <span className="text-xs md:hidden">
+                  {label[0]}
+                  <br />
+                  {label[1]}
+                </span>
+                <span className="hidden md:inline">{label.join(" ")}</span>
+              </div>
+            </TabsTrigger>
+          ))}
         </TabsList>
 
-        <TabsContent value="info" className="mt-6 space-y-6">
-          <DealershipInfoForm />
-        </TabsContent>
-
-        <TabsContent value="hours" className="mt-6 space-y-6">
-          <WorkingHoursForm />
-        </TabsContent>
-
-        <TabsContent value="admins" className="mt-6 space-y-6">
-          <AdminUsersList />
-        </TabsContent>
-
-        <TabsContent value="home-data" className="mt-6 space-y-6">
-          <HomeContentForm />
-        </TabsContent>
+        {tabs.map(({ value, content }) => (
+          <TabsContent key={value} value={value} className="mt-6 space-y-6">
+            {content}
+          </TabsContent>
+        ))}
       </Tabs>
     </div>
   );

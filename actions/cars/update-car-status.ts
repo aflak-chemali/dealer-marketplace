@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import type { CarStatusEnum as CarStatus } from "@/enums/car-status";
 import { getLogger } from "@/lib/logger";
-import { ensureAdminUser } from "@/lib/supabase/ensure-admin-user";
+import { ensureDealerUser } from "@/lib/supabase/ensure-dealer-user";
 import type { ActionResponse } from "@/types/common/action-response";
 
 const log = getLogger(["app", "actions", "cars"]);
@@ -23,7 +23,7 @@ export async function updateCarStatus(
   { status, featured }: { status?: CarStatus; featured?: boolean },
 ): Promise<ActionResponse<null>> {
   try {
-    const { supabase } = await ensureAdminUser();
+    const { supabase, dealerId, isSuperAdmin } = await ensureDealerUser();
 
     const updateData: {
       status?: CarStatus;
@@ -39,10 +39,11 @@ export async function updateCarStatus(
     }
 
     // Update the car
-    const { error } = await supabase
-      .from("Car")
-      .update(updateData)
-      .eq("id", id);
+    let query = supabase.from("Car").update(updateData).eq("id", id);
+    if (!isSuperAdmin) {
+      query = query.eq("dealerId", dealerId);
+    }
+    const { error } = await query;
 
     if (error) throw error;
 

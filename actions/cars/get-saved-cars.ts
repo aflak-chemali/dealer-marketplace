@@ -46,7 +46,8 @@ export async function getSavedCars(): Promise<ActionResponse<SerializedCar[]>> {
         car:Car(
           *,
           carMake:CarMake(id, name, slug),
-          carColor:CarColor(id, name, slug)
+          carColor:CarColor(id, name, slug),
+          dealer:Dealer(id, name, slug, city, logoUrl)
         )
       `,
       )
