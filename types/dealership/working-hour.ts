@@ -7,8 +7,10 @@ import type { DayOfWeek } from "@/enums/day-of-week";
 export interface WorkingHour {
   /** Primary key for this weekly schedule row. */
   id: string;
-  /** Dealership profile this schedule belongs to. */
-  dealershipId: string;
+  /** Legacy dealership profile this schedule belongs to. */
+  dealershipId?: string | null;
+  /** Dealer this schedule belongs to. */
+  dealerId?: string | null;
   /** Day of week for this schedule. */
   dayOfWeek: DayOfWeek;
   /** Opening time in 24-hour format. */

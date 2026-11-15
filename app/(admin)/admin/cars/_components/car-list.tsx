@@ -261,6 +261,11 @@ export const CarsList = () => {
                       </TableCell>
                       <TableCell className="font-medium">
                         {car.make} {car.model}
+                        {car.dealer && (
+                          <div className="font-normal text-gray-500 text-xs">
+                            {car.dealer.name}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>{car.year}</TableCell>
                       <TableCell>{formatCurrency(car.price)}</TableCell>

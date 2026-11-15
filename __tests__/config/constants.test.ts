@@ -29,8 +29,12 @@ describe("enums", () => {
     expect(DayOfWeekEnum.SUNDAY).toBe("SUNDAY");
   });
 
-  it("UserRoleEnum has only ADMIN and USER", () => {
-    expect(Object.values(UserRoleEnum).sort()).toEqual(["ADMIN", "USER"]);
+  it("UserRoleEnum has ADMIN, DEALER and USER", () => {
+    expect(Object.values(UserRoleEnum).sort()).toEqual([
+      "ADMIN",
+      "DEALER",
+      "USER",
+    ]);
   });
 });
 
@@ -55,6 +59,13 @@ describe("ROUTES constants", () => {
   it("marks saved cars and reservations as protected", () => {
     expect(PROTECTED_ROUTES).toContain("/saved-cars");
     expect(PROTECTED_ROUTES).toContain("/reservations");
+  });
+
+  it("exposes dealer marketplace routes", () => {
+    expect(ROUTES.DEALERS).toBe("/dealers");
+    expect(ROUTES.DEALER_PROFILE("acme-motors")).toBe("/dealers/acme-motors");
+    expect(ROUTES.BECOME_DEALER).toBe("/become-dealer");
+    expect(PROTECTED_ROUTES).toContain("/become-dealer");
   });
 });
 

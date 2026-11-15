@@ -70,12 +70,13 @@ describe("config/env", () => {
         "placeholder-publishable-key",
       );
       expect(env.SUPABASE_SECRET_KEY).toBe("placeholder-secret-key");
-      expect(env.ARCJET_KEY).toBe("placeholder-arcjet-key");
+      expect(env.ARCJET_KEY).toBeUndefined();
 
       expect(env.NEXT_PUBLIC_MAX_CAR_IMAGE_SIZE_MB).toBe(5);
       expect(env.NEXT_PUBLIC_MAX_LOGO_SIZE_MB).toBe(1);
       expect(env.NEXT_PUBLIC_MAX_FAVICON_SIZE_KB).toBe(256);
-      expect(env.NEXT_PUBLIC_TOTAL_STORAGE_LIMIT_GB).toBe(50);
+      expect(env.NEXT_PUBLIC_TOTAL_STORAGE_LIMIT_GB).toBe(1);
+      expect(env.NEXT_PUBLIC_MAX_IMAGES_PER_CAR).toBe(8);
       expect(env.NODE_ENV).toBe("development");
 
       expect(FILE_LIMITS.CAR_IMAGE).toBe(5 * 1024 * 1024);
@@ -85,7 +86,7 @@ describe("config/env", () => {
       expect(FILE_LIMITS.FAVICON).toBe(256 * 1024);
       expect(Number.isNaN(FILE_LIMITS.FAVICON)).toBe(false);
       expect(FILE_LIMITS.GLOBAL_STORAGE_LIMIT_BYTES).toBe(
-        50 * 1024 * 1024 * 1024,
+        1 * 1024 * 1024 * 1024,
       );
       expect(Number.isNaN(FILE_LIMITS.GLOBAL_STORAGE_LIMIT_BYTES)).toBe(false);
     });
@@ -108,7 +109,7 @@ describe("config/env", () => {
         "placeholder-publishable-key",
       );
       expect(env.SUPABASE_SECRET_KEY).toBe("placeholder-secret-key");
-      expect(env.ARCJET_KEY).toBe("placeholder-arcjet-key");
+      expect(env.ARCJET_KEY).toBeUndefined();
 
       expect(env.NEXT_PUBLIC_MAX_CAR_IMAGE_SIZE_MB).toBe(5);
       expect(env.NEXT_PUBLIC_MAX_LOGO_SIZE_MB).toBe(1);
@@ -285,13 +286,13 @@ describe("config/env", () => {
       );
     });
 
-    it("throws an error when ARCJET_KEY is missing", async () => {
+    it("treats ARCJET_KEY as optional", async () => {
       setValidRequiredEnv();
       delete process.env.ARCJET_KEY;
 
-      await expect(loadEnvModule()).rejects.toThrow(
-        "Invalid environment variables",
-      );
+      const { env } = await loadEnvModule();
+
+      expect(env.ARCJET_KEY).toBeUndefined();
     });
   });
 

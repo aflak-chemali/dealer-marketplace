@@ -29,7 +29,13 @@ vi.mock("@/components/header/account-dialog", () => ({
 describe("nav-items data", () => {
   it("defines main nav items with expected routes and flags", () => {
     const labels = MAIN_NAV_ITEMS.map((i) => i.label);
-    expect(labels).toEqual(["Home", "All Cars", "Saved", "Reservations"]);
+    expect(labels).toEqual([
+      "Home",
+      "All Cars",
+      "Dealers",
+      "Saved",
+      "Reservations",
+    ]);
 
     const saved = MAIN_NAV_ITEMS.find((i) => i.label === "Saved")!;
     expect(saved.requiresAuth).toBe(true);
@@ -52,6 +58,7 @@ describe("nav-items data", () => {
       "Cars",
       "Test Drives",
       "Settings",
+      "Dealers",
     ]);
     for (const item of ADMIN_NAV_ITEMS) {
       expect(item.href.startsWith("/admin")).toBe(true);
@@ -85,6 +92,19 @@ describe("DesktopNav", () => {
 
     expect(screen.queryByText("Reservations")).not.toBeInTheDocument();
     expect(screen.getByText("Saved")).toBeInTheDocument();
+  });
+
+  it("shows superadmin-only items to admins only", () => {
+    const { unmount } = render(
+      <DesktopNav items={ADMIN_NAV_ITEMS} isAuthenticated userRole="DEALER" />,
+    );
+    expect(screen.queryByText("Dealers")).not.toBeInTheDocument();
+    unmount();
+
+    render(
+      <DesktopNav items={ADMIN_NAV_ITEMS} isAuthenticated userRole="ADMIN" />,
+    );
+    expect(screen.getByText("Dealers")).toBeInTheDocument();
   });
 
   it("links each visible item to its href", () => {

@@ -1,9 +1,8 @@
 "use server";
 
-import { UserRoleEnum as UserRole } from "@/enums/user-role";
 import { serializeCarData } from "@/lib/helpers/serialize-car";
 import { getLogger } from "@/lib/logger";
-import { createClient } from "@/lib/supabase/supabase";
+import { ensureDealerUser } from "@/lib/supabase/ensure-dealer-user";
 import type { ActionResponse } from "@/types/common/action-response";
 import type { TestDriveBookingWithUser } from "@/types/test-drive/test-drive-booking-with-user";
 
@@ -28,28 +27,7 @@ export async function getAdminTestDrives({
 }): Promise<ActionResponse<TestDriveBookingWithUser[]>> {
   log.debug("Fetching admin test drives (status: '{status}')", { status });
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user: authUser },
-      error: authError,
-    } = await supabase.auth.getUser();
-    if (authError || !authUser) {
-      log.warn("Unauthorized attempt to access admin test drives");
-      throw new Error("Unauthorized");
-    }
-
-    // Verify admin status
-    const { data: user } = await supabase
-      .from("User")
-      .select("*")
-      .eq("supabaseAuthUserId", authUser.id)
-      .single();
-
-    if (!user || user.role !== UserRole.ADMIN) {
-      log.warn("Forbidden access attempt to admin test drives");
-      throw new Error("Unauthorized access");
-    }
+    const { supabase, dealerId, isSuperAdmin } = await ensureDealerUser();
 
     // Build query
     let query = supabase
@@ -67,6 +45,10 @@ export async function getAdminTestDrives({
       )
       .order("bookingDate", { ascending: false })
       .order("startTime", { ascending: true });
+
+    if (!isSuperAdmin) {
+      query = query.eq("dealerId", dealerId);
+    }
 
     if (status) {
       query = query.eq("status", status);

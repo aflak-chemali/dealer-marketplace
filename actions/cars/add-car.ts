@@ -5,9 +5,12 @@ import { v4 as uuidv4 } from "uuid";
 import { checkStorageQuota } from "@/actions/storage/check-storage-quota";
 import { env } from "@/config/env";
 import type { CarStatusEnum as CarStatus } from "@/enums/car-status";
-import { UserRoleEnum as UserRole } from "@/enums/user-role";
 import { getLogger } from "@/lib/logger";
-import { createAdminClient, createClient } from "@/lib/supabase/supabase";
+import {
+  carStorageFolder,
+  ensureDealerUser,
+} from "@/lib/supabase/ensure-dealer-user";
+import { createAdminClient } from "@/lib/supabase/supabase";
 import type { CarFormData } from "@/types/car/car-form-data";
 import type { ActionResponse } from "@/types/common/action-response";
 
@@ -15,6 +18,7 @@ const log = getLogger(["app", "actions", "cars"]);
 
 const MAX_IMAGE_SIZE_MB = env.NEXT_PUBLIC_MAX_CAR_IMAGE_SIZE_MB;
 const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
+const MAX_IMAGES_PER_CAR = env.NEXT_PUBLIC_MAX_IMAGES_PER_CAR ?? 8;
 
 /**
  * Validates that all files are under the size limit.
@@ -60,21 +64,15 @@ export async function addCar(
       throw new Error("At least one image is required");
     }
 
-    const supabase = await createClient();
+    const { supabase, dealerId } = await ensureDealerUser({
+      requireDealer: true,
+    });
 
-    const {
-      data: { user: authUser },
-      error: authError,
-    } = await supabase.auth.getUser();
-    if (authError || !authUser) throw new Error("Unauthorized");
-
-    const { data: user } = await supabase
-      .from("User")
-      .select("*")
-      .eq("supabaseAuthUserId", authUser.id)
-      .single();
-
-    if (!user || user.role !== UserRole.ADMIN) throw new Error("Unauthorized");
+    if (images.length > MAX_IMAGES_PER_CAR) {
+      throw new Error(
+        `A listing can have at most ${MAX_IMAGES_PER_CAR} images.`,
+      );
+    }
 
     // Validate image sizes
     validateFileSizes(images);
@@ -90,7 +88,7 @@ export async function addCar(
 
     // Create a unique folder name for this car's images
     const carId = uuidv4();
-    const folderPath = `cars/${carId}`;
+    const folderPath = carStorageFolder(carId, dealerId);
 
     // Initialize Supabase admin client (uses service role key)
     const supabaseAdmin = createAdminClient();
@@ -139,6 +137,7 @@ export async function addCar(
     // Add the car to the database
     const { error: insertError } = await supabase.from("Car").insert({
       id: carId,
+      dealerId,
       carMakeId: carData.carMakeId,
       carColorId: carData.carColorId,
       model: carData.model,

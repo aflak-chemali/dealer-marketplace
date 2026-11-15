@@ -42,6 +42,7 @@ export const MobileNav = ({
     if (!item.showInMobile) return false;
     if (item.requiresAuth && !isAuthenticated) return false;
     if (item.hideForAdmin && isAdmin) return false;
+    if (item.superAdminOnly && !isAdmin) return false;
     return true;
   });
 

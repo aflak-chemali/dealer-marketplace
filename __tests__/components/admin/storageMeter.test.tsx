@@ -8,12 +8,13 @@ vi.mock("@/actions/storage/get-storage-usage", () => ({
   getStorageUsage: () => mockGetStorageUsage(),
 }));
 
-const GB = 1024 * 1024 * 1024;
+const MB = 1024 * 1024;
+const GB = 1024 * MB;
 
 describe("StorageMeter", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default limit is 50 GB (config/env.ts default)
+    // Default limit is 1 GB (config/env.ts default)
   });
 
   it("shows a loading skeleton before usage resolves", () => {
@@ -26,20 +27,20 @@ describe("StorageMeter", () => {
   });
 
   it("renders usage and limit after fetching", async () => {
-    mockGetStorageUsage.mockResolvedValue(10 * GB);
+    mockGetStorageUsage.mockResolvedValue(200 * MB);
 
     render(<StorageMeter />);
 
     await waitFor(() => {
       expect(
-        screen.getByText((_, el) => el?.textContent === "10.00 GB / 50.00 GB"),
+        screen.getByText((_, el) => el?.textContent === "200 MB / 1.00 GB"),
       ).toBeInTheDocument();
     });
     expect(screen.getByText("Storage Usage")).toBeInTheDocument();
   });
 
   it("shows the primary variant below 70% usage", async () => {
-    mockGetStorageUsage.mockResolvedValue(10 * GB); // 20%
+    mockGetStorageUsage.mockResolvedValue(0.2 * GB); // 20%
 
     render(<StorageMeter />);
 
@@ -52,7 +53,7 @@ describe("StorageMeter", () => {
   });
 
   it("shows the amber secondary variant between 70% and 90%", async () => {
-    mockGetStorageUsage.mockResolvedValue(40 * GB); // 80%
+    mockGetStorageUsage.mockResolvedValue(0.8 * GB); // 80%
 
     render(<StorageMeter />);
 
@@ -64,7 +65,7 @@ describe("StorageMeter", () => {
   });
 
   it("shows the destructive variant at or above 90%", async () => {
-    mockGetStorageUsage.mockResolvedValue(48 * GB); // 96%
+    mockGetStorageUsage.mockResolvedValue(0.96 * GB); // 96%
 
     render(<StorageMeter />);
 
@@ -75,7 +76,7 @@ describe("StorageMeter", () => {
   });
 
   it("caps the percentage at 100% and formats tiny values", async () => {
-    mockGetStorageUsage.mockResolvedValue(60 * GB); // 120% of limit
+    mockGetStorageUsage.mockResolvedValue(1.2 * GB); // 120% of limit
 
     render(<StorageMeter />);
 

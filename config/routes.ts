@@ -6,6 +6,7 @@
 const ADMIN_BASE = "/admin";
 const CARS_BASE = "/cars";
 const TEST_DRIVE_BASE = "/test-drive";
+const DEALERS_BASE = "/dealers";
 const ADMIN_CARS = `${ADMIN_BASE}/cars`;
 
 export const ROUTES = {
@@ -28,6 +29,10 @@ export const ROUTES = {
   RESERVATIONS: "/reservations",
   TEST_DRIVE: (carId: string) => `${TEST_DRIVE_BASE}/${carId}`,
 
+  DEALERS: DEALERS_BASE,
+  DEALER_PROFILE: (slug: string) => `${DEALERS_BASE}/${slug}`,
+  BECOME_DEALER: "/become-dealer",
+
   ADMIN: {
     ADMIN: ADMIN_BASE,
     ADMIN_CARS: ADMIN_CARS,
@@ -35,6 +40,7 @@ export const ROUTES = {
     ADMIN_CAR_EDIT: (carId: string) => `${ADMIN_CARS}/${carId}/edit`,
     ADMIN_TEST_DRIVES: `${ADMIN_BASE}/test-drives`,
     ADMIN_SETTINGS: `${ADMIN_BASE}/settings`,
+    ADMIN_DEALERS: `${ADMIN_BASE}/dealers`,
   },
 
   API: {
@@ -58,5 +64,6 @@ export const PROTECTED_ROUTES = [
   ROUTES.ADMIN.ADMIN,
   ROUTES.SAVED_CARS,
   ROUTES.RESERVATIONS,
+  ROUTES.BECOME_DEALER,
   ROUTES.AUTH.OAUTH_CONSENT,
 ] as const;

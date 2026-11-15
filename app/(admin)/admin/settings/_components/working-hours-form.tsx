@@ -3,8 +3,8 @@
 import { Clock, Loader2, Save } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { getDealershipInfo } from "@/actions/settings/get-dealership-info";
-import { saveWorkingHours } from "@/actions/settings/save-working-hours";
+import { getMyDealer } from "@/actions/dealers/get-my-dealer";
+import { saveDealerWorkingHours } from "@/actions/dealers/save-dealer-working-hours";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -32,11 +32,11 @@ const DAYS: Array<{ value: DayOfWeekEnum; label: string }> = [
 ];
 
 /**
- * Client form for dealership opening hours.
+ * Client form for the signed-in dealer's opening hours.
  * Loads existing hours, applies default weekday hours, and saves changes.
  *
  * @returns Working hours editor with validation and save feedback
- * @see saveWorkingHours - Server action persisting the hours
+ * @see saveDealerWorkingHours - Server action persisting the hours
  * @see DayOfWeekEnum - Supported weekday values
  */
 export const WorkingHoursForm = () => {
@@ -50,10 +50,11 @@ export const WorkingHoursForm = () => {
   );
 
   // Custom hooks for API calls
-  const { fn: fetchDealershipInfo, data: settingsData } =
-    useFetch(getDealershipInfo);
+  const { fn: fetchDealershipInfo, data: settingsData } = useFetch(getMyDealer);
 
-  const { loading: savingHours, fn: saveHours } = useFetch(saveWorkingHours);
+  const { loading: savingHours, fn: saveHours } = useFetch(
+    saveDealerWorkingHours,
+  );
 
   // Fetch settings on component mount
   useEffect(() => {
@@ -124,10 +125,14 @@ export const WorkingHoursForm = () => {
    */
   const handleSaveHours = async () => {
     if (!settingsData?.success || !settingsData.data?.id) {
-      toast.error("No dealership found. Please create dealership info first.");
+      toast.error("No dealer profile found. Please create one first.");
       return;
     }
-    const result = await saveHours(settingsData.data.id, workingHours);
+    const result = await saveHours(workingHours);
+    if (result && !result.success) {
+      toast.error(result.error);
+      return;
+    }
     if (result?.success) {
       toast.success("Working hours saved successfully");
       fetchDealershipInfo();

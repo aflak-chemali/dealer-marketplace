@@ -2,9 +2,8 @@
 
 import { BookingStatusEnum as BookingStatus } from "@/enums/booking-status";
 import { CarStatusEnum as CarStatus } from "@/enums/car-status";
-import { UserRoleEnum as UserRole } from "@/enums/user-role";
 import { getLogger } from "@/lib/logger";
-import { createClient } from "@/lib/supabase/supabase";
+import { ensureDealerUser } from "@/lib/supabase/ensure-dealer-user";
 import type { ActionResponse } from "@/types/common/action-response";
 import type { DashboardData } from "@/types/common/dashboard-data";
 
@@ -23,34 +22,17 @@ export async function getDashboardData(): Promise<
 > {
   log.debug("Fetching dashboard data");
   try {
-    const supabase = await createClient();
+    const { supabase, dealerId, isSuperAdmin } = await ensureDealerUser();
 
-    const {
-      data: { user: authUser },
-      error: authError,
-    } = await supabase.auth.getUser();
-    if (authError || !authUser) {
-      log.warn("Unauthorized attempt to fetch dashboard data");
-      throw new Error("Unauthorized");
-    }
+    const carsQuery = supabase.from("Car").select("id, status, featured");
+    const testDrivesQuery = supabase
+      .from("TestDriveBooking")
+      .select("id, status, carId");
 
-    const { data: user } = await supabase
-      .from("User")
-      .select("*")
-      .eq("supabaseAuthUserId", authUser.id)
-      .single();
-
-    if (!user || user.role !== UserRole.ADMIN) {
-      log.warn("Forbidden attempt to fetch dashboard data");
-      return {
-        success: false,
-        error: "Unauthorized",
-      };
-    }
-
+    // Dealers only see their own KPIs; platform admins see everything
     const [carsResult, testDrivesResult] = await Promise.all([
-      supabase.from("Car").select("id, status, featured"),
-      supabase.from("TestDriveBooking").select("id, status, carId"),
+      isSuperAdmin ? carsQuery : carsQuery.eq("dealerId", dealerId),
+      isSuperAdmin ? testDrivesQuery : testDrivesQuery.eq("dealerId", dealerId),
     ]);
 
     const cars = carsResult.data || [];

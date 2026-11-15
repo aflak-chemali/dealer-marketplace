@@ -8,6 +8,63 @@ import type { ActionResponse } from "@/types/common/action-response";
 import type { SerializedDealershipInfo } from "@/types/dealership/serialized-dealership-info";
 import type { UserTestDrive } from "@/types/test-drive/user-test-drive";
 
+type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
+
+/**
+ * Loads a marketplace dealer's contact info and hours in the dealership-info shape
+ * used by the car detail and test drive components.
+ */
+async function getDealerContact(
+  supabase: SupabaseClient,
+  dealerId: string,
+): Promise<SerializedDealershipInfo | null> {
+  const { data: dealer } = await supabase
+    .from("Dealer")
+    .select(
+      `
+      id, name, slug, city, address, phone, email, whatsappPhone, logoUrl,
+      createdAt, updatedAt,
+      workingHours:WorkingHour(*)
+    `,
+    )
+    .eq("id", dealerId)
+    .maybeSingle();
+
+  if (!dealer) return null;
+
+  return {
+    id: dealer.id,
+    name: dealer.name,
+    slug: dealer.slug,
+    city: dealer.city,
+    address: dealer.address ?? "",
+    phone: dealer.phone ?? "",
+    email: dealer.email ?? "",
+    whatsappPhone: dealer.whatsappPhone ?? "",
+    logoUrl: dealer.logoUrl,
+    createdAt: dealer.createdAt,
+    updatedAt: dealer.updatedAt,
+    workingHours: dealer.workingHours ?? [],
+  };
+}
+
+/** Falls back to the single legacy dealership for listings without a dealer. */
+async function getLegacyDealership(
+  supabase: SupabaseClient,
+): Promise<SerializedDealershipInfo | null> {
+  const { data } = await supabase
+    .from("DealershipInfo")
+    .select(
+      `
+      *,
+      workingHours:WorkingHour(*)
+    `,
+    )
+    .limit(1)
+    .maybeSingle();
+  return data ?? null;
+}
+
 /**
  * Fetches car details with test drive metadata.
  * Includes dealership info, working hours, existing bookings, user's active booking.
@@ -58,7 +115,8 @@ export async function getCarById(carId: string): Promise<
         `
         *,
         carMake:CarMake(id, name, slug),
-        carColor:CarColor(id, name, slug)
+        carColor:CarColor(id, name, slug),
+        dealer:Dealer(id, name, slug, city, logoUrl)
       `,
       )
       .eq("id", carId)
@@ -111,16 +169,10 @@ export async function getCarById(carId: string): Promise<
       }
     }
 
-    // Get dealership info for test drive availability
-    const { data: dealership } = await supabase
-      .from("DealershipInfo")
-      .select(
-        `
-        *,
-        workingHours:WorkingHour(*)
-      `,
-      )
-      .single();
+    // Get the owning dealer (contact info + working hours) for test drive availability
+    const dealership = car.dealerId
+      ? await getDealerContact(supabase, car.dealerId)
+      : await getLegacyDealership(supabase);
 
     // Get existing bookings for this car to show unavailable slots
     const { data: existingBookings } = await supabase

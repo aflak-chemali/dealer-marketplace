@@ -8,6 +8,8 @@ import {
   Layout,
   LayoutDashboard,
   type LucideIcon,
+  ShieldCheck,
+  Store,
 } from "lucide-react";
 import { ROUTES } from "@/config/routes";
 
@@ -28,7 +30,17 @@ export interface NavItem {
   requiresAuth?: boolean;
   /** Whether to hide this item for admin users. */
   hideForAdmin?: boolean;
+  /** Whether this item is only shown to platform admins (superadmins). */
+  superAdminOnly?: boolean;
 }
+
+// "Become a dealer" call to action for signed-in regular users
+export const BECOME_DEALER_ITEM: NavItem = {
+  label: "Sell your cars",
+  icon: Store,
+  href: ROUTES.BECOME_DEALER,
+  requiresAuth: true,
+};
 
 /**
  * Navigation configuration file containing all navigation items for the application.
@@ -50,6 +62,12 @@ export const MAIN_NAV_ITEMS: NavItem[] = [
     label: "All Cars",
     icon: CarFront,
     href: ROUTES.HOME.CARS,
+    showInMobile: true,
+  },
+  {
+    label: "Dealers",
+    icon: Store,
+    href: ROUTES.DEALERS,
     showInMobile: true,
   },
   {
@@ -95,9 +113,16 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
     href: ROUTES.ADMIN.ADMIN_SETTINGS,
     showInMobile: true,
   },
+  {
+    label: "Dealers",
+    icon: ShieldCheck,
+    href: ROUTES.ADMIN.ADMIN_DEALERS,
+    showInMobile: true,
+    superAdminOnly: true,
+  },
 ];
 
-// Admin portal button for main site
+// Admin / dealer portal button for main site
 export const ADMIN_PORTAL_ITEM: NavItem = {
   label: "Admin Portal",
   icon: Layout,

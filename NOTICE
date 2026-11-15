@@ -1,0 +1,16 @@
+Dealer Marketplace
+Copyright 2026 aflak-chemali
+
+This product is a modified version of "car-dealership"
+(https://github.com/mbeps/car-dealership), licensed under the
+Apache License, Version 2.0. See the LICENSE file for the full license text.
+
+Modifications made in this fork include, among others:
+- Conversion from a single dealership into a multi-dealer marketplace
+  (dealer profiles, public dealer feed and dealer pages).
+- Dealer-scoped inventory, bookings and storage enforced with Supabase
+  Row Level Security.
+- Superadmin dealer moderation.
+- Free-tier hardening (client-side image compression, per-car image caps,
+  optional Arcjet, Supabase keep-alive workflow) and Netlify deployment
+  configuration.

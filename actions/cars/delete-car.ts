@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { getLogger } from "@/lib/logger";
-import { ensureAdminUser } from "@/lib/supabase/ensure-admin-user";
+import {
+  carStorageFolder,
+  ensureDealerUser,
+} from "@/lib/supabase/ensure-dealer-user";
 import { createAdminClient } from "@/lib/supabase/supabase";
 import type { ActionResponse } from "@/types/common/action-response";
 
@@ -21,7 +24,21 @@ const log = getLogger(["app", "actions", "cars"]);
  */
 export async function deleteCar(id: string): Promise<ActionResponse<null>> {
   try {
-    const { supabase } = await ensureAdminUser();
+    const { supabase, dealerId, isSuperAdmin } = await ensureDealerUser();
+
+    // Dealers can only delete their own listings
+    if (!isSuperAdmin) {
+      const { data: ownedCar } = await supabase
+        .from("Car")
+        .select("id")
+        .eq("id", id)
+        .eq("dealerId", dealerId)
+        .maybeSingle();
+
+      if (!ownedCar) {
+        throw new Error("Car not found");
+      }
+    }
 
     // Delete associated test drive bookings first to avoid FK constraint violation
     const { error: bookingsError } = await supabase
@@ -41,10 +58,11 @@ export async function deleteCar(id: string): Promise<ActionResponse<null>> {
     }
 
     // Delete the car from the database
-    const { error: deleteError } = await supabase
+    const { data: deletedRows, error: deleteError } = await supabase
       .from("Car")
       .delete()
-      .eq("id", id);
+      .eq("id", id)
+      .select("images, dealerId");
 
     if (deleteError) {
       log.error("Database error deleting car (id: {id}): {message}", {
@@ -57,25 +75,33 @@ export async function deleteCar(id: string): Promise<ActionResponse<null>> {
     // Delete the car's image folder from Supabase storage
     try {
       const supabaseAdmin = createAdminClient();
-      const folderPath = `cars/${id}`;
+      const deleted = Array.isArray(deletedRows) ? deletedRows[0] : null;
+      const folders = new Set<string>([carStorageFolder(id, null)]);
+      if (deleted?.dealerId) {
+        folders.add(carStorageFolder(id, deleted.dealerId));
+      }
 
-      // List all files in the car's folder
-      const { data: files, error: listError } = await supabaseAdmin.storage
-        .from("car-images")
-        .list(folderPath);
+      const filePaths: string[] = [];
+      for (const folderPath of folders) {
+        // List all files in the car's folder
+        const { data: files, error: listError } = await supabaseAdmin.storage
+          .from("car-images")
+          .list(folderPath);
 
-      if (listError) {
-        log.error(
-          "Error listing car images for deletion (id: {id}): {message}",
-          {
-            id,
-            message: listError.message,
-          },
-        );
-      } else if (files && files.length > 0) {
-        // Build paths to all files in the folder
-        const filePaths = files.map((file) => `${folderPath}/${file.name}`);
+        if (listError) {
+          log.error(
+            "Error listing car images for deletion (id: {id}): {message}",
+            {
+              id,
+              message: listError.message,
+            },
+          );
+        } else if (files && files.length > 0) {
+          filePaths.push(...files.map((file) => `${folderPath}/${file.name}`));
+        }
+      }
 
+      if (filePaths.length > 0) {
         // Delete all files
         const { error: removeError } = await supabaseAdmin.storage
           .from("car-images")

@@ -31,6 +31,10 @@ export interface DealershipInfo {
   logoUpdatedAt?: Date | string | null;
   /** Dealership opening hours. */
   workingHours?: WorkingHour[];
+  /** Dealer slug when this info represents a marketplace dealer. */
+  slug?: string | null;
+  /** Dealer city when this info represents a marketplace dealer. */
+  city?: string | null;
   /** Record creation timestamp. */
   createdAt: Date | string;
   /** Record last update timestamp. */

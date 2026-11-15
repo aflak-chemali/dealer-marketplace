@@ -78,7 +78,7 @@ export async function bookTestDrive(
     // Check if car exists and is available
     const { data: car } = await supabase
       .from("Car")
-      .select("*")
+      .select("*, dealer:Dealer(ownerId)")
       .eq("id", carId)
       .eq("status", CarStatus.AVAILABLE)
       .single();
@@ -86,6 +86,11 @@ export async function bookTestDrive(
     if (!car) {
       log.warn("Attempted to book unavailable car (carId: {carId})", { carId });
       throw new Error("Car not available for test drive");
+    }
+
+    // Dealers cannot book test drives for their own listings
+    if (car.dealer?.ownerId && car.dealer.ownerId === user.id) {
+      throw new Error("You cannot book a test drive for your own listing.");
     }
 
     // Check if slot is already booked

@@ -9,6 +9,7 @@ import { MobileNav } from "@/components/header/mobile-nav";
 import {
   ADMIN_NAV_ITEMS,
   ADMIN_PORTAL_ITEM,
+  BECOME_DEALER_ITEM,
   MAIN_NAV_ITEMS,
 } from "@/components/header/nav-items";
 import { UserMenu } from "@/components/header/user-menu";
@@ -71,6 +72,8 @@ const HeaderClient = ({
 
   const isAuthenticated = !!user;
   const isAdmin = userRole === UserRole.ADMIN;
+  const isDealer = userRole === UserRole.DEALER;
+  const canOpenPortal = isAdmin || isDealer;
   const logoSrc = resolveHeaderLogoSrc({ logoUrl, logoVersion });
   const isSvgLogo = /\.svg($|\?)/i.test(logoSrc);
 
@@ -98,7 +101,7 @@ const HeaderClient = ({
               />
               {isAdminPage && (
                 <span className="hidden font-bold text-lg md:inline">
-                  Admin
+                  {isDealer ? "Dealer" : "Admin"}
                 </span>
               )}
             </Link>
@@ -128,15 +131,28 @@ const HeaderClient = ({
                   isAuthenticated={isAuthenticated}
                   userRole={userRole}
                 />
-                {/* Admin Portal Button - only show for authenticated admins */}
-                {isAuthenticated && isAdmin && (
+                {/* Portal Button - admins and dealers */}
+                {isAuthenticated && canOpenPortal && (
                   <Link href={ADMIN_PORTAL_ITEM.href}>
                     <Button
                       variant="outline"
                       className="flex items-center gap-2"
                     >
                       <ADMIN_PORTAL_ITEM.icon size={18} />
-                      <span>{ADMIN_PORTAL_ITEM.label}</span>
+                      <span>
+                        {isDealer ? "Dealer Portal" : ADMIN_PORTAL_ITEM.label}
+                      </span>
+                    </Button>
+                  </Link>
+                )}
+                {/* Become a dealer CTA - regular signed-in users */}
+                {isAuthenticated && !canOpenPortal && (
+                  <Link href={BECOME_DEALER_ITEM.href}>
+                    <Button className="flex items-center gap-2">
+                      <BECOME_DEALER_ITEM.icon size={18} />
+                      <span className="hidden sm:inline">
+                        {BECOME_DEALER_ITEM.label}
+                      </span>
                     </Button>
                   </Link>
                 )}
